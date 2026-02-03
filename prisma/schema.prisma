@@ -1,0 +1,92 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("PRISMA_DATABASE_URL")
+}
+
+model providers {
+  id                                      Int      @id @default(autoincrement())
+  last_name                               String   @db.VarChar(255)
+  first_name                              String   @db.VarChar(255)
+  middle_initial                          String?  @db.VarChar(10)
+  email                                   String   @db.VarChar(255)
+  status                                  String   @default("pending") @db.VarChar(50)
+  date_of_birth                           DateTime? @db.Date
+  ssn                                     String?  @db.VarChar(20)
+  cv_document                             String?  @db.VarChar(500)
+  college                                 String?  @db.VarChar(255)
+  graduation_date                         DateTime? @db.Date
+  professional_license_number             String?  @db.VarChar(100)
+  professional_license_state              String?  @db.VarChar(50)
+  professional_license_effective_date     DateTime? @db.Date
+  professional_license_expiration_date    DateTime? @db.Date
+  license_revoked_or_suspended            String?  @db.VarChar(10)
+  dea_license_number                      String?  @db.VarChar(100)
+  dea_license_state                       String?  @db.VarChar(50)
+  dea_license_issuance_date               DateTime? @db.Date
+  dea_license_expiration_date             DateTime? @db.Date
+  certification_board_name                String?  @db.VarChar(255)
+  certification_number                    String?  @db.VarChar(100)
+  certification_effective_date            DateTime? @db.Date
+  certification_expiration_date           DateTime? @db.Date
+  individual_npi                          String?  @db.VarChar(20)
+  individual_taxonomy_code                String?  @db.VarChar(50)
+  group_npi                               String?  @db.VarChar(20)
+  group_taxonomy_code                     String?  @db.VarChar(50)
+  group_name                              String?  @db.VarChar(255)
+  group_tin                               String?  @db.VarChar(50)
+  address_line1                           String?  @db.VarChar(255)
+  address_line2                           String?  @db.VarChar(255)
+  city                                    String?  @db.VarChar(100)
+  state                                   String?  @db.VarChar(50)
+  zip_code                                String?  @db.VarChar(20)
+  phone_number                            String?  @db.VarChar(20)
+  fax_number                              String?  @db.VarChar(20)
+  clia_waiver_number                      String?  @db.VarChar(100)
+  clia_waiver_effective_date              DateTime? @db.Date
+  clia_waiver_expiration_date             DateTime? @db.Date
+  clia_waiver_document                    String?  @db.VarChar(500)
+  bank_name                               String?  @db.VarChar(255)
+  routing_number                          String?  @db.VarChar(50)
+  account_number                          String?  @db.VarChar(50)
+  voided_check_document                   String?  @db.VarChar(500)
+  malpractice_company                     String?  @db.VarChar(255)
+  malpractice_policy_number               String?  @db.VarChar(100)
+  malpractice_start_date                  DateTime? @db.Date
+  malpractice_end_date                    DateTime? @db.Date
+  malpractice_amount                      String?  @db.VarChar(50)
+  caqh_number                             String?  @db.VarChar(100)
+  caqh_username                           String?  @db.VarChar(255)
+  caqh_password                           String?  @db.VarChar(255)
+  notes                                   String?  @db.Text
+  prior_credentialing                     String?  @db.VarChar(10)
+  credentialed_insurances                 String?  @db.Text
+  desired_insurances                      String?  @db.Text
+  created_at                              DateTime @default(now()) @db.Timestamp(6)
+  updated_at                              DateTime @default(now()) @db.Timestamp(6)
+  
+  insurance_applications                  insurance_applications[]
+}
+
+model insurance_applications {
+  id                    Int      @id @default(autoincrement())
+  provider_id           Int
+  insurance_name        String   @db.VarChar(255)
+  submission_date       DateTime? @db.Date
+  due_date              DateTime? @db.Date
+  method_of_submission  String?  @db.VarChar(100)
+  reference_number      String?  @db.VarChar(100)
+  provider_number       String?  @db.VarChar(100)
+  notes                 String?  @db.Text
+  entered_by            String?  @db.VarChar(255)
+  created_at            DateTime @default(now()) @db.Timestamp(6)
+  updated_at            DateTime @default(now()) @db.Timestamp(6)
+  
+  provider              providers @relation(fields: [provider_id], references: [id], onDelete: Cascade)
+  
+  @@index([provider_id])
+  @@index([insurance_name])
+}

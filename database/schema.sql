@@ -1,0 +1,81 @@
+-- Providers Table
+CREATE TABLE IF NOT EXISTS providers (
+  id SERIAL PRIMARY KEY,
+  last_name VARCHAR(255) NOT NULL,
+  first_name VARCHAR(255) NOT NULL,
+  middle_initial VARCHAR(10),
+  email VARCHAR(255) NOT NULL,
+  status VARCHAR(50) DEFAULT 'pending',
+  date_of_birth DATE,
+  ssn VARCHAR(20),
+  cv_document VARCHAR(500),
+  college VARCHAR(255),
+  graduation_date DATE,
+  professional_license_number VARCHAR(100),
+  professional_license_state VARCHAR(50),
+  professional_license_effective_date DATE,
+  professional_license_expiration_date DATE,
+  license_revoked_or_suspended VARCHAR(10),
+  dea_license_number VARCHAR(100),
+  dea_license_state VARCHAR(50),
+  dea_license_issuance_date DATE,
+  dea_license_expiration_date DATE,
+  certification_board_name VARCHAR(255),
+  certification_number VARCHAR(100),
+  certification_effective_date DATE,
+  certification_expiration_date DATE,
+  individual_npi VARCHAR(20),
+  individual_taxonomy_code VARCHAR(50),
+  group_npi VARCHAR(20),
+  group_taxonomy_code VARCHAR(50),
+  group_name VARCHAR(255),
+  group_tin VARCHAR(50),
+  address_line1 VARCHAR(255),
+  address_line2 VARCHAR(255),
+  city VARCHAR(100),
+  state VARCHAR(50),
+  zip_code VARCHAR(20),
+  phone_number VARCHAR(20),
+  fax_number VARCHAR(20),
+  clia_waiver_number VARCHAR(100),
+  clia_waiver_effective_date DATE,
+  clia_waiver_expiration_date DATE,
+  clia_waiver_document VARCHAR(500),
+  bank_name VARCHAR(255),
+  routing_number VARCHAR(50),
+  account_number VARCHAR(50),
+  voided_check_document VARCHAR(500),
+  malpractice_company VARCHAR(255),
+  malpractice_policy_number VARCHAR(100),
+  malpractice_start_date DATE,
+  malpractice_end_date DATE,
+  malpractice_amount VARCHAR(50),
+  caqh_number VARCHAR(100),
+  caqh_username VARCHAR(255),
+  caqh_password VARCHAR(255),
+  notes TEXT,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Insurance Applications Table
+CREATE TABLE IF NOT EXISTS insurance_applications (
+  id SERIAL PRIMARY KEY,
+  provider_id INTEGER NOT NULL REFERENCES providers(id) ON DELETE CASCADE,
+  insurance_name VARCHAR(255) NOT NULL,
+  submission_date DATE,
+  due_date DATE,
+  method_of_submission VARCHAR(100),
+  reference_number VARCHAR(100),
+  provider_number VARCHAR(100),
+  notes TEXT,
+  entered_by VARCHAR(255),
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Create indexes for better query performance
+CREATE INDEX IF NOT EXISTS idx_providers_email ON providers(email);
+CREATE INDEX IF NOT EXISTS idx_providers_last_name ON providers(last_name);
+CREATE INDEX IF NOT EXISTS idx_insurance_provider_id ON insurance_applications(provider_id);
+CREATE INDEX IF NOT EXISTS idx_insurance_insurance_name ON insurance_applications(insurance_name);
