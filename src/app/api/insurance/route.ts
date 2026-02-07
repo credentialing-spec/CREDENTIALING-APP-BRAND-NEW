@@ -41,6 +41,7 @@ export async function POST(request: NextRequest) {
           data: {
             provider_id: parseInt(providerId),
             insurance_name: app.insuranceName,
+            status: app.status || 'pending',
             submission_date: app.submissionDate ? new Date(app.submissionDate) : null,
             due_date: app.dueDate ? new Date(app.dueDate) : null,
             method_of_submission: app.methodOfSubmission || null,

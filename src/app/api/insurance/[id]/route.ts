@@ -44,6 +44,7 @@ export async function PUT(
       where: { id },
       data: {
         insurance_name: data.insuranceName,
+        status: data.status ?? undefined,
         submission_date: data.submissionDate ? new Date(data.submissionDate) : null,
         due_date: data.dueDate ? new Date(data.dueDate) : null,
         method_of_submission: data.methodOfSubmission || null,

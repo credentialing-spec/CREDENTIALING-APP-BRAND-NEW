@@ -63,6 +63,7 @@ CREATE TABLE IF NOT EXISTS insurance_applications (
   id SERIAL PRIMARY KEY,
   provider_id INTEGER NOT NULL REFERENCES providers(id) ON DELETE CASCADE,
   insurance_name VARCHAR(255) NOT NULL,
+  status VARCHAR(50) DEFAULT 'pending',
   submission_date DATE,
   due_date DATE,
   method_of_submission VARCHAR(100),

@@ -3,12 +3,21 @@
 import { useState, useEffect } from 'react';
 import DashboardLayout from '@/components/DashboardLayout';
 
+const insuranceStatusOptions = [
+  'approved',
+  'awaiting info from provider',
+  'pending',
+  'resubmitted',
+];
+
 export default function AdminPage() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [password, setPassword] = useState('');
   const [providers, setProviders] = useState<any[]>([]);
+  const [insuranceApplications, setInsuranceApplications] = useState<any[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   const [editingProvider, setEditingProvider] = useState<any | null>(null);
+  const [editingInsuranceApp, setEditingInsuranceApp] = useState<any | null>(null);
   const [editForm, setEditForm] = useState({
     id: 0,
     firstName: '',
@@ -20,12 +29,26 @@ export default function AdminPage() {
     status: 'pending',
     notes: '',
   });
+  const [insuranceEditForm, setInsuranceEditForm] = useState({
+    id: 0,
+    providerId: 0,
+    insuranceName: '',
+    status: 'pending',
+    submissionDate: '',
+    dueDate: '',
+    methodOfSubmission: '',
+    referenceNumber: '',
+    providerNumber: '',
+    notes: '',
+    enteredBy: '',
+  });
 
   useEffect(() => {
     const auth = sessionStorage.getItem('adminAuth');
     if (auth === 'true') {
       setIsAuthenticated(true);
       fetchProviders();
+      fetchInsuranceApplications();
     }
   }, []);
 
@@ -35,6 +58,42 @@ export default function AdminPage() {
       const data = await response.json();
       setProviders(data.providers);
     }
+  };
+
+  const normalizeInsuranceApplication = (app: any) => ({
+    id: app.id,
+    providerId: app.providerId ?? app.provider_id,
+    insuranceName: app.insuranceName ?? app.insurance_name ?? '',
+    status: app.status ?? 'pending',
+    submissionDate: app.submissionDate ?? app.submission_date ?? '',
+    dueDate: app.dueDate ?? app.due_date ?? '',
+    methodOfSubmission: app.methodOfSubmission ?? app.method_of_submission ?? '',
+    referenceNumber: app.referenceNumber ?? app.reference_number ?? '',
+    providerNumber: app.providerNumber ?? app.provider_number ?? '',
+    notes: app.notes ?? '',
+    enteredBy: app.enteredBy ?? app.entered_by ?? '',
+  });
+
+  const fetchInsuranceApplications = async () => {
+    const response = await fetch('/api/insurance');
+    if (response.ok) {
+      const data = await response.json();
+      const applications = Array.isArray(data.applications) ? data.applications : [];
+      setInsuranceApplications(applications.map(normalizeInsuranceApplication));
+    }
+  };
+
+  const toInputDate = (value: string) => {
+    if (!value) return '';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return value;
+    return date.toISOString().split('T')[0];
+  };
+
+  const getProviderName = (providerId: number) => {
+    const provider = providers.find((item) => item.id === providerId);
+    if (!provider) return `Provider #${providerId}`;
+    return `${provider.lastName}, ${provider.firstName} ${provider.middleInitial || ''}`.trim();
   };
 
   const handleStatusUpdate = async (providerId: number, status: string) => {
@@ -82,6 +141,51 @@ export default function AdminPage() {
     }
   };
 
+  const handleInsuranceStatusUpdate = async (applicationId: number, status: string) => {
+    setIsSaving(true);
+    try {
+      const response = await fetch(`/api/insurance/${applicationId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update insurance status');
+      }
+
+      await fetchInsuranceApplications();
+    } catch (error) {
+      console.error('Error updating insurance status:', error);
+      alert('Error updating insurance status. Please try again.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleDeleteInsuranceApplication = async (applicationId: number) => {
+    const confirmed = window.confirm('Are you sure you want to delete this insurance application?');
+    if (!confirmed) return;
+
+    setIsSaving(true);
+    try {
+      const response = await fetch(`/api/insurance/${applicationId}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete insurance application');
+      }
+
+      await fetchInsuranceApplications();
+    } catch (error) {
+      console.error('Error deleting insurance application:', error);
+      alert('Error deleting insurance application. Please try again.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const openEdit = (provider: any) => {
     setEditForm({
       id: provider.id,
@@ -97,8 +201,29 @@ export default function AdminPage() {
     setEditingProvider(provider);
   };
 
+  const openInsuranceEdit = (application: any) => {
+    setInsuranceEditForm({
+      id: application.id,
+      providerId: application.providerId,
+      insuranceName: application.insuranceName,
+      status: application.status || 'pending',
+      submissionDate: toInputDate(application.submissionDate),
+      dueDate: toInputDate(application.dueDate),
+      methodOfSubmission: application.methodOfSubmission || '',
+      referenceNumber: application.referenceNumber || '',
+      providerNumber: application.providerNumber || '',
+      notes: application.notes || '',
+      enteredBy: application.enteredBy || '',
+    });
+    setEditingInsuranceApp(application);
+  };
+
   const closeEdit = () => {
     setEditingProvider(null);
+  };
+
+  const closeInsuranceEdit = () => {
+    setEditingInsuranceApp(null);
   };
 
   const handleEditChange = (
@@ -106,6 +231,13 @@ export default function AdminPage() {
   ) => {
     const { name, value } = e.target;
     setEditForm((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleInsuranceEditChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+  ) => {
+    const { name, value } = e.target;
+    setInsuranceEditForm((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleSaveEdit = async (e: React.FormEvent) => {
@@ -138,6 +270,42 @@ export default function AdminPage() {
     } catch (error) {
       console.error('Error updating provider:', error);
       alert('Error updating provider. Please try again.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleSaveInsuranceEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingInsuranceApp) return;
+
+    setIsSaving(true);
+    try {
+      const response = await fetch(`/api/insurance/${editingInsuranceApp.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          insuranceName: insuranceEditForm.insuranceName,
+          status: insuranceEditForm.status,
+          submissionDate: insuranceEditForm.submissionDate,
+          dueDate: insuranceEditForm.dueDate,
+          methodOfSubmission: insuranceEditForm.methodOfSubmission,
+          referenceNumber: insuranceEditForm.referenceNumber,
+          providerNumber: insuranceEditForm.providerNumber,
+          notes: insuranceEditForm.notes,
+          enteredBy: insuranceEditForm.enteredBy,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update insurance application');
+      }
+
+      await fetchInsuranceApplications();
+      closeInsuranceEdit();
+    } catch (error) {
+      console.error('Error updating insurance application:', error);
+      alert('Error updating insurance application. Please try again.');
     } finally {
       setIsSaving(false);
     }
@@ -273,6 +441,82 @@ export default function AdminPage() {
             </div>
           )}
         </div>
+
+        <div className="bg-white rounded-lg shadow p-6 mt-8">
+          <h2 className="text-xl font-bold text-gray-900 mb-4">Insurance Applications</h2>
+          {insuranceApplications.length === 0 ? (
+            <p className="text-gray-500">No insurance applications found</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="bg-gray-50 border-b border-gray-200">
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Provider</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Insurance</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Submission</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Due</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Status</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Entered By</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {insuranceApplications.map((application) => (
+                    <tr key={application.id} className="hover:bg-gray-50 transition-colors">
+                      <td className="px-4 py-4 text-sm text-gray-900 font-medium">
+                        {getProviderName(application.providerId)}
+                      </td>
+                      <td className="px-4 py-4 text-sm text-gray-900">
+                        {application.insuranceName || '-'}
+                      </td>
+                      <td className="px-4 py-4 text-sm text-gray-600">
+                        {application.submissionDate ? new Date(application.submissionDate).toLocaleDateString() : '-'}
+                      </td>
+                      <td className="px-4 py-4 text-sm text-gray-600">
+                        {application.dueDate ? new Date(application.dueDate).toLocaleDateString() : '-'}
+                      </td>
+                      <td className="px-4 py-4 text-sm">
+                        <select
+                          value={application.status || 'pending'}
+                          onChange={(e) => handleInsuranceStatusUpdate(application.id, e.target.value)}
+                          disabled={isSaving}
+                          className="w-full min-w-[220px] px-2 py-1 border border-gray-300 rounded-md text-sm bg-white"
+                        >
+                          {insuranceStatusOptions.map((status) => (
+                            <option key={status} value={status}>
+                              {status}
+                            </option>
+                          ))}
+                        </select>
+                      </td>
+                      <td className="px-4 py-4 text-sm text-gray-600">
+                        {application.enteredBy || '-'}
+                      </td>
+                      <td className="px-4 py-4 text-sm text-gray-600">
+                        <div className="flex flex-wrap gap-2">
+                          <button
+                            onClick={() => openInsuranceEdit(application)}
+                            disabled={isSaving}
+                            className="px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 disabled:opacity-50"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => handleDeleteInsuranceApplication(application.id)}
+                            disabled={isSaving}
+                            className="px-3 py-1 bg-gray-700 text-white text-xs rounded hover:bg-gray-800 disabled:opacity-50"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
       </div>
 
       {editingProvider && (
@@ -402,6 +646,163 @@ export default function AdminPage() {
                 <button
                   type="button"
                   onClick={closeEdit}
+                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSaving}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                >
+                  Save Changes
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {editingInsuranceApp && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-3xl">
+            <div className="flex items-center justify-between border-b px-6 py-4">
+              <div>
+                <h2 className="text-xl font-bold text-gray-900">Edit Insurance Application</h2>
+                <p className="text-sm text-gray-500">
+                  {getProviderName(insuranceEditForm.providerId)}
+                </p>
+              </div>
+              <button
+                onClick={closeInsuranceEdit}
+                className="text-gray-500 hover:text-gray-700"
+                aria-label="Close"
+              >
+                ✕
+              </button>
+            </div>
+            <form onSubmit={handleSaveInsuranceEdit} className="px-6 py-4 space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Insurance Name
+                  </label>
+                  <input
+                    type="text"
+                    name="insuranceName"
+                    value={insuranceEditForm.insuranceName}
+                    onChange={handleInsuranceEditChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Status
+                  </label>
+                  <select
+                    name="status"
+                    value={insuranceEditForm.status}
+                    onChange={handleInsuranceEditChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+                  >
+                    {insuranceStatusOptions.map((status) => (
+                      <option key={status} value={status}>
+                        {status}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Submission Date
+                  </label>
+                  <input
+                    type="date"
+                    name="submissionDate"
+                    value={insuranceEditForm.submissionDate}
+                    onChange={handleInsuranceEditChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Due Date
+                  </label>
+                  <input
+                    type="date"
+                    name="dueDate"
+                    value={insuranceEditForm.dueDate}
+                    onChange={handleInsuranceEditChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Method of Submission
+                  </label>
+                  <input
+                    type="text"
+                    name="methodOfSubmission"
+                    value={insuranceEditForm.methodOfSubmission}
+                    onChange={handleInsuranceEditChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Reference Number
+                  </label>
+                  <input
+                    type="text"
+                    name="referenceNumber"
+                    value={insuranceEditForm.referenceNumber}
+                    onChange={handleInsuranceEditChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Provider Number
+                  </label>
+                  <input
+                    type="text"
+                    name="providerNumber"
+                    value={insuranceEditForm.providerNumber}
+                    onChange={handleInsuranceEditChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Entered By
+                  </label>
+                  <input
+                    type="text"
+                    name="enteredBy"
+                    value={insuranceEditForm.enteredBy}
+                    onChange={handleInsuranceEditChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Notes
+                  </label>
+                  <textarea
+                    name="notes"
+                    value={insuranceEditForm.notes}
+                    onChange={handleInsuranceEditChange}
+                    rows={4}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-3 border-t pt-4">
+                <button
+                  type="button"
+                  onClick={closeInsuranceEdit}
                   className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
                 >
                   Cancel
